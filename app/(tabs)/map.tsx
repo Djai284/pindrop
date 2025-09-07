@@ -1,3 +1,4 @@
+import ImageGallery from '@/components/ui/ImageGallery';
 import React from 'react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, InputAccessoryView, Keyboard, Platform, Pressable, StyleSheet, Switch, TextInput, ToastAndroid, View, Share, FlatList } from 'react-native';
@@ -283,10 +284,13 @@ export default function MapScreen() {
   }, [navigation, scheme]);
 
   const privacyFilter = useMapUiStore((s) => s.privacyFilter);
+  const focusPinId = useMapUiStore((s) => s.focusPinId);
+  const setFocusPinId = useMapUiStore((s) => s.setFocusPinId);
   const meUser = useSocialStore((s) => s.me().username);
   const following = useSocialStore((s) => s.following);
   const visiblePins = useMemo(() => {
     return pins.filter((p) => {
+      if (!p || !p.coords || typeof p.coords.latitude !== 'number' || typeof p.coords.longitude !== 'number') return false;
       const owner = (p as any).owner ?? 'me';
       const isMine = owner === meUser || owner === 'me' || owner == null;
       if (isMine) return true; // always see your own
@@ -367,6 +371,26 @@ export default function MapScreen() {
       }),
     [filteredPins, categoryStyle]
   );
+
+  // Respond to focusPinId updates (from Explore "Show on Map")
+  useEffect(() => {
+    if (!focusPinId) return;
+    const target = pins.find((p) => p.id === focusPinId) || null;
+    if (target && target.coords && typeof target.coords.latitude === 'number' && typeof target.coords.longitude === 'number') {
+      setSelectedPin(target);
+      const nextRegion: Region = {
+        latitude: target.coords.latitude,
+        longitude: target.coords.longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      };
+      requestAnimationFrame(() => {
+        mapRef.current?.animateToRegion(nextRegion, 600);
+        setTimeout(() => bottomSheetRef.current?.present(), 150);
+      });
+    }
+    setFocusPinId(null);
+  }, [focusPinId, pins, setFocusPinId]);
 
   return (
     <View style={styles.container}>
@@ -450,20 +474,13 @@ export default function MapScreen() {
               {/* Media carousel */}
               <View style={styles.mediaCarousel}>
                 {activePin.photos && activePin.photos.length > 0 ? (
-                  <FlatList
-                    data={activePin.photos}
-                    horizontal
-                    pagingEnabled
-                    showsHorizontalScrollIndicator={false}
-                    keyExtractor={(u) => u}
-                    renderItem={({ item }) => (
-                      <ExpoImage source={{ uri: item }} style={styles.mediaItem} contentFit="cover" cachePolicy="memory-disk" />
-                    )}
-                  />
+                  <ImageGallery uris={activePin.photos} height={180} containerPaddingHorizontal={16} />
                 ) : (
-                  <View style={[styles.mediaItem, styles.mediaPlaceholder]}>
-                    <Icon name="image" family="Feather" size={24} color={scheme === 'dark' ? '#6b7280' : '#9ca3af'} />
-                    <Text style={{ marginTop: 6, color: scheme === 'dark' ? '#9ca3af' : '#6b7280' }}>No photos</Text>
+                  <View style={{ paddingHorizontal: 16 }}>
+                    <View style={[styles.mediaItem, styles.mediaPlaceholder]}>
+                      <Icon name="image" family="Feather" size={24} color={scheme === 'dark' ? '#6b7280' : '#9ca3af'} />
+                      <Text style={{ marginTop: 6, color: scheme === 'dark' ? '#9ca3af' : '#6b7280' }}>No photos</Text>
+                    </View>
                   </View>
                 )}
               </View>
@@ -594,6 +611,8 @@ export default function MapScreen() {
                   <TextInput
                     value={commentText}
                     onChangeText={setCommentText}
+                    keyboardAppearance={scheme === 'dark' ? 'dark' : 'light'}
+                    inputAccessoryViewID={Platform.OS === 'ios' ? 'commentAccessory' : undefined}
                     placeholder="Add a comment"
                     placeholderTextColor={scheme === 'dark' ? '#6b7280' : '#9ca3af'}
                     style={[styles.commentInput, scheme === 'dark' ? styles.inputDark : styles.inputLight]}
@@ -649,6 +668,24 @@ export default function MapScreen() {
       {Platform.OS === 'ios' && (
         <InputAccessoryView nativeID={ACCESSORY_ID} backgroundColor={scheme === 'dark' ? '#111827' : '#ffffff'}>
           <View style={{ paddingHorizontal: 12, paddingVertical: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#e5e7eb', alignItems: 'flex-end' }}>
+            <Pressable onPress={() => Keyboard.dismiss()} accessibilityRole="button" accessibilityLabel="Done">
+              <Text weight="semibold" style={{ color: Colors[scheme ?? 'light'].tint }}>Done</Text>
+            </Pressable>
+          </View>
+        </InputAccessoryView>
+      )}
+
+      {/* iOS comment accessory with quick emojis */}
+      {Platform.OS === 'ios' && (
+        <InputAccessoryView nativeID="commentAccessory" backgroundColor={scheme === 'dark' ? '#111827' : '#ffffff'}>
+          <View style={{ paddingHorizontal: 12, paddingVertical: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#e5e7eb', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <View style={{ flexDirection: 'row' }}>
+              {['😀', '🔥', '😍', '👏', '👍', '🎉'].map((e) => (
+                <Pressable key={e} onPress={() => setCommentText((t) => (t || '') + e)} style={{ paddingHorizontal: 6 }}>
+                  <Text style={{ fontSize: 18 }}>{e}</Text>
+                </Pressable>
+              ))}
+            </View>
             <Pressable onPress={() => Keyboard.dismiss()} accessibilityRole="button" accessibilityLabel="Done">
               <Text weight="semibold" style={{ color: Colors[scheme ?? 'light'].tint }}>Done</Text>
             </Pressable>
