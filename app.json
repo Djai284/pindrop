@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "pindrop-iphone-app",
-    "slug": "pindrop-iphone-app",
+    "name": "pindrop",
+    "slug": "pindrop",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "pindropiphoneapp",
+    "scheme": "pindrop",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
