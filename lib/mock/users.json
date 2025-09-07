@@ -1,0 +1,97 @@
+{
+  "users": [
+    {
+      "username": "alex",
+      "displayName": "Alex Kim",
+      "bio": "Coffee and city walks.",
+      "pins": [
+        {
+          "id": "alex-1",
+          "title": "Blue Bottle Hayes",
+          "description": "Best pour-over.",
+          "categories": ["cafe"],
+          "privacy": "public",
+          "coords": { "latitude": 37.7763, "longitude": -122.4231 }
+        },
+        {
+          "id": "alex-2",
+          "title": "Study nook @ Library",
+          "description": "Quiet weekday mornings",
+          "categories": ["study"],
+          "privacy": "friends",
+          "coords": { "latitude": 37.7793, "longitude": -122.4155 }
+        }
+      ]
+    },
+    {
+      "username": "keshav",
+      "displayName": "Keshav Gowthaman",
+      "bio": "Hiking and matcha.",
+      "pins": [
+        {
+          "id": "keshav-1",
+          "title": "Lands End lookout",
+          "categories": ["nature"],
+          "privacy": "public",
+          "coords": { "latitude": 37.7802, "longitude": -122.513 }
+        },
+        {
+          "id": "keshav-2",
+          "title": "Secret matcha spot",
+          "categories": ["cafe"],
+          "privacy": "friends",
+          "coords": { "latitude": 37.7922, "longitude": -122.407 }
+        }
+      ]
+    },
+    {
+      "username": "taylor",
+      "displayName": "Taylor Rowe",
+      "bio": "Art & galleries",
+      "pins": [
+        {
+          "id": "taylor-1",
+          "title": "Local mural",
+          "categories": ["art"],
+          "privacy": "public",
+          "coords": { "latitude": 37.7602, "longitude": -122.414 }
+        },
+        {
+          "id": "taylor-2",
+          "title": "Studio hang",
+          "categories": ["art"],
+          "privacy": "private",
+          "coords": { "latitude": 37.7569, "longitude": -122.42 }
+        }
+      ]
+    },
+    {
+      "username": "jordan",
+      "displayName": "Jordan Lee",
+      "bio": "Nature escapes on weekends",
+      "pins": [
+        {
+          "id": "jordan-1",
+          "title": "Twin Peaks sunset",
+          "categories": ["landmark"],
+          "privacy": "public",
+          "coords": { "latitude": 37.7544, "longitude": -122.4477 }
+        }
+      ]
+    },
+    {
+      "username": "casey",
+      "displayName": "Casey Nguyen",
+      "bio": "Cafes and co-working",
+      "pins": [
+        {
+          "id": "casey-1",
+          "title": "Neighborhood roasters",
+          "categories": ["cafe"],
+          "privacy": "friends",
+          "coords": { "latitude": 37.7707, "longitude": -122.441 }
+        }
+      ]
+    }
+  ]
+}

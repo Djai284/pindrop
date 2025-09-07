@@ -16,7 +16,9 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "We use your location to show your position on the map and to drop pins at your current location."
+        "NSLocationWhenInUseUsageDescription": "We use your location to show your position on the map and to drop pins at your current location.",
+        "NSPhotoLibraryUsageDescription": "We need access to your photo library so you can attach photos to your pins.",
+        "NSCameraUsageDescription": "We need access to your camera so you can take photos for your pins."
       }
     },
     "android": {
