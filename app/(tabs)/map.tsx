@@ -14,6 +14,7 @@ import * as FileSystem from 'expo-file-system';
 import { Image as ExpoImage } from 'expo-image';
 import * as Linking from 'expo-linking';
 import { FlashList } from '@shopify/flash-list';
+import CommentsSheet, { CommentsSheetRef } from '@/components/comments/CommentsSheet';
 
 import { Text } from '@/components/ui/Text';
 import { Icon } from '@/components/ui/Icon';
@@ -97,7 +98,7 @@ export default function MapScreen() {
 
   // Keep active pin in sync with store updates (e.g., ratings/comments)
   const activePin = usePinsStore((s) => (selectedPin ? s.pins.find((p) => p.id === selectedPin.id) || null : null));
-  const [commentText, setCommentText] = useState('');
+  const commentsSheetRef = useRef<CommentsSheetRef>(null);
 
   // Create/Edit sheet
   const createSheetRef = useRef<BottomSheetModal>(null);
@@ -604,60 +605,48 @@ export default function MapScreen() {
                 </Pressable>
               </View>
 
-              {/* Comments */}
+              {/* Comments (preview + open sheet) */}
               <View style={{ marginTop: 12 }}>
-                <Text weight="semibold" style={{ color: scheme === 'dark' ? '#f3f4f6' : '#111827', marginBottom: 6 }}>Comments</Text>
-                <View style={styles.commentRow}>
-                  <TextInput
-                    value={commentText}
-                    onChangeText={setCommentText}
-                    keyboardAppearance={scheme === 'dark' ? 'dark' : 'light'}
-                    inputAccessoryViewID={Platform.OS === 'ios' ? 'commentAccessory' : undefined}
-                    placeholder="Add a comment"
-                    placeholderTextColor={scheme === 'dark' ? '#6b7280' : '#9ca3af'}
-                    style={[styles.commentInput, scheme === 'dark' ? styles.inputDark : styles.inputLight]}
-                  />
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Text weight="semibold" style={{ color: scheme === 'dark' ? '#f3f4f6' : '#111827', marginBottom: 6 }}>Comments</Text>
                   <Pressable
-                    onPress={() => {
-                      const txt = commentText.trim();
-                      if (!txt) return;
-                      // mock users
-                      const users = ['Alex', 'Sam', 'Taylor', 'Jordan', 'Casey'];
-                      const user = users[Math.floor(Math.random() * users.length)];
-                      addComment(activePin.id, { user, text: txt });
-                      setCommentText('');
-                    }}
-                    style={[styles.postBtn, { backgroundColor: tint }]}
+                    onPress={() => commentsSheetRef.current?.presentFor(activePin.id)}
                     accessibilityRole="button"
-                    accessibilityLabel="Post comment"
+                    accessibilityLabel="Open comments"
+                    style={{ paddingHorizontal: 8, paddingVertical: 6 }}
                   >
-                    <Text weight="semibold" style={{ color: '#fff' }}>Post</Text>
+                    <Text weight="semibold" style={{ color: tint }}>View all</Text>
                   </Pressable>
                 </View>
-
-                <View style={{ marginTop: 8 }}>
-                  <FlashList
-                    data={activePin.comments || []}
-                    keyExtractor={(c) => c.id}
-                    renderItem={({ item }) => (
-                      <View style={styles.commentItem}>
-                        <View style={styles.avatar}>
-                          <Text style={styles.avatarText}>{item.user?.[0]?.toUpperCase() || '?'}</Text>
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <Text weight="semibold" style={{ color: scheme === 'dark' ? '#e5e7eb' : '#111827' }}>{item.user}</Text>
-                            <Text style={{ color: scheme === 'dark' ? '#6b7280' : '#9ca3af', fontSize: 12 }}>
-                              {new Date(item.createdAt).toLocaleString()}
-                            </Text>
-                          </View>
-                          <Text style={{ color: scheme === 'dark' ? '#d1d5db' : '#374151', marginTop: 2 }}>{item.text}</Text>
-                        </View>
+                {(activePin.comments || []).slice(0, 2).map((c) => (
+                  <View key={c.id} style={styles.commentItem}>
+                    <View style={styles.avatar}>
+                      <Text style={styles.avatarText}>{c.user?.[0]?.toUpperCase() || '?'}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Text weight="semibold" style={{ color: scheme === 'dark' ? '#e5e7eb' : '#111827' }}>{c.user}</Text>
+                        <Text style={{ color: scheme === 'dark' ? '#6b7280' : '#9ca3af', fontSize: 12 }}>
+                          {new Date(c.createdAt).toLocaleString()}
+                        </Text>
                       </View>
-                    )}
-                    nestedScrollEnabled
-                    style={{ maxHeight: 220 }}
-                  />
+                      <Text style={{ color: scheme === 'dark' ? '#d1d5db' : '#374151', marginTop: 2 }}>{c.text}</Text>
+                    </View>
+                  </View>
+                ))}
+                {(activePin.comments || []).length === 0 && (
+                  <Text style={{ color: scheme === 'dark' ? '#9ca3af' : '#6b7280' }}>No comments yet</Text>
+                )}
+
+                <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 6 }}>
+                  <Pressable
+                    onPress={() => commentsSheetRef.current?.presentFor(activePin.id)}
+                    style={[styles.postBtn, { backgroundColor: tint }]}
+                    accessibilityRole="button"
+                    accessibilityLabel="Add a comment"
+                  >
+                    <Text weight="semibold" style={{ color: '#fff' }}>Comment</Text>
+                  </Pressable>
                 </View>
               </View>
             </View>
@@ -665,27 +654,12 @@ export default function MapScreen() {
         </BottomSheetScrollView>
       </BottomSheetModal>
 
+      {/* Reusable Comments Sheet for Map details */}
+      <CommentsSheet ref={commentsSheetRef} />
+
       {Platform.OS === 'ios' && (
         <InputAccessoryView nativeID={ACCESSORY_ID} backgroundColor={scheme === 'dark' ? '#111827' : '#ffffff'}>
           <View style={{ paddingHorizontal: 12, paddingVertical: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#e5e7eb', alignItems: 'flex-end' }}>
-            <Pressable onPress={() => Keyboard.dismiss()} accessibilityRole="button" accessibilityLabel="Done">
-              <Text weight="semibold" style={{ color: Colors[scheme ?? 'light'].tint }}>Done</Text>
-            </Pressable>
-          </View>
-        </InputAccessoryView>
-      )}
-
-      {/* iOS comment accessory with quick emojis */}
-      {Platform.OS === 'ios' && (
-        <InputAccessoryView nativeID="commentAccessory" backgroundColor={scheme === 'dark' ? '#111827' : '#ffffff'}>
-          <View style={{ paddingHorizontal: 12, paddingVertical: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#e5e7eb', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <View style={{ flexDirection: 'row' }}>
-              {['😀', '🔥', '😍', '👏', '👍', '🎉'].map((e) => (
-                <Pressable key={e} onPress={() => setCommentText((t) => (t || '') + e)} style={{ paddingHorizontal: 6 }}>
-                  <Text style={{ fontSize: 18 }}>{e}</Text>
-                </Pressable>
-              ))}
-            </View>
             <Pressable onPress={() => Keyboard.dismiss()} accessibilityRole="button" accessibilityLabel="Done">
               <Text weight="semibold" style={{ color: Colors[scheme ?? 'light'].tint }}>Done</Text>
             </Pressable>

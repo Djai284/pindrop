@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Keyboard, Platform, Pressable, Share, StyleSheet, TextInput, View, InputAccessoryView } from 'react-native';
+import { ActivityIndicator, Alert, Keyboard, Pressable, Share, StyleSheet, View, TextInput } from 'react-native';
 import * as Location from 'expo-location';
 import { FlashList } from '@shopify/flash-list';
 import { useWindowDimensions } from 'react-native';
@@ -17,6 +17,7 @@ import { useMapUiStore } from '@/lib/store/map';
 import { useNavigation } from 'expo-router';
 import ImageGallery from '@/components/ui/ImageGallery';
 import MiniSlider from '@/components/ui/MiniSlider';
+import CommentsSheet, { CommentsSheetRef } from '@/components/comments/CommentsSheet';
 
 function toRad(v: number) {
   return (v * Math.PI) / 180;
@@ -74,10 +75,8 @@ export default function ExploreFeed() {
   // Filters (moved to bottom sheet)
   const [radius, setRadius] = useState<number | null>(null); // miles; null=Anywhere
 
-  // Comment input state per pin
-  const [commentTexts, setCommentTexts] = useState<Record<string, string>>({});
-  const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
-  const EMOJIS = ['😀', '🔥', '😍', '👏', '👍', '🎉'];
+  // Comments sheet ref
+  const commentsSheetRef = useRef<CommentsSheetRef>(null);
 
   // Location
   const [permissionStatus, setPermissionStatus] = useState<Location.PermissionStatus | null>(null);
@@ -225,7 +224,7 @@ export default function ExploreFeed() {
                 </View>
               ))}
               {item.comments.length > 2 && (
-                <Pressable onPress={() => { setCommentsForId(item.id); commentsSheetRef.current?.present(); }}>
+                <Pressable onPress={() => commentsSheetRef.current?.presentFor(item.id)}>
                   <Text style={{ color: scheme === 'dark' ? '#9ca3af' : '#6b7280' }}>View all {item.comments.length} comments</Text>
                 </Pressable>
               )}
@@ -245,11 +244,7 @@ export default function ExploreFeed() {
             </Pressable>
 
             <Pressable
-              onPress={() => {
-                // focus comment input below
-                // handled by focusing via ref key per item
-                commentRefs.current[item.id]?.focus?.();
-              }}
+              onPress={() => commentsSheetRef.current?.presentFor(item.id)}
               style={styles.actionBtn}
               accessibilityRole="button"
               accessibilityLabel="Comment"
@@ -287,52 +282,17 @@ export default function ExploreFeed() {
               <Text style={[styles.actionLabel, { color: tint }]}>Show on Map</Text>
             </Pressable>
           </View>
-
-          {/* Comment input */}
-          <View style={styles.commentRow}>
-            <TextInput
-              ref={(r) => { commentRefs.current[item.id] = r; }}
-              onFocus={() => {
-                setActiveCommentId(item.id);
-                // ensure input is visible above keyboard
-                setTimeout(() => listRef.current?.scrollToIndex({ index, animated: true, viewPosition: 1 }), 100);
-              }}
-              keyboardAppearance={scheme === 'dark' ? 'dark' : 'light'}
-              inputAccessoryViewID={Platform.OS === 'ios' ? 'commentAccessory' : undefined}
-              placeholder="Add a comment"
-              placeholderTextColor={scheme === 'dark' ? '#6b7280' : '#9ca3af'}
-              style={[styles.commentInput, scheme === 'dark' ? styles.inputDark : styles.inputLight]}
-              value={commentTexts[item.id] ?? ''}
-              onChangeText={(t) => setCommentTexts((s) => ({ ...s, [item.id]: t }))}
-              onSubmitEditing={(e) => {
-                const txt = (commentTexts[item.id] ?? '').trim();
-                if (!txt) return;
-                const users = ['Alex', 'Sam', 'Taylor', 'Jordan', 'Casey'];
-                const user = users[Math.floor(Math.random() * users.length)];
-                addComment(item.id, { user, text: txt });
-                // clear after slight delay to keep submit event
-                requestAnimationFrame(() => {
-                  setCommentTexts((s) => ({ ...s, [item.id]: '' }));
-                });
-                Keyboard.dismiss();
-              }}
-              returnKeyType="send"
-            />
-          </View>
+          {/* Comment input removed in favor of comments sheet */}
         </Card>
       );
     },
-    [users, loc, scheme, tint, toggleLike, addComment, setFocusPinId, navigation, commentTexts]
+    [users, loc, scheme, tint, toggleLike, setFocusPinId, navigation]
   );
-
-  const commentRefs = useRef<Record<string, TextInput | null>>({});
 
   // Bottom sheet for filters (declare before HeaderBar to reference ref)
   const filterSheetRef = useRef<BottomSheetModal>(null);
   const snapPoints = ['40%'];
-  // Comments sheet
-  const commentsSheetRef = useRef<BottomSheetModal>(null);
-  const [commentsForId, setCommentsForId] = useState<string | null>(null);
+  // Remove old comments sheet in favor of CommentsSheet component
 
   // Header with search + filters trigger
   const HeaderBar = (
@@ -376,7 +336,7 @@ export default function ExploreFeed() {
         data={visible}
         keyExtractor={(p) => p.id}
         renderItem={renderItem}
-        extraData={commentTexts}
+        extraData={null}
         keyboardShouldPersistTaps="handled"
         onEndReachedThreshold={0.6}
         onEndReached={onEndReached}
@@ -387,27 +347,8 @@ export default function ExploreFeed() {
           </View>
         }
       />
-
-      {/* iOS comment accessory with quick emojis */}
-      {Platform.OS === 'ios' && (
-        <InputAccessoryView nativeID="commentAccessory" backgroundColor={scheme === 'dark' ? '#111827' : '#ffffff'}>
-          <View style={{ paddingHorizontal: 12, paddingVertical: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#e5e7eb', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <View style={{ flexDirection: 'row' }}>
-              {EMOJIS.map((e) => (
-                <Pressable key={e} onPress={() => {
-                  if (!activeCommentId) return;
-                  setCommentTexts((s) => ({ ...s, [activeCommentId]: (s[activeCommentId] || '') + e }));
-                }} style={{ paddingHorizontal: 6 }}>
-                  <Text style={{ fontSize: 18 }}>{e}</Text>
-                </Pressable>
-              ))}
-            </View>
-            <Pressable onPress={() => Keyboard.dismiss()} accessibilityRole="button" accessibilityLabel="Done">
-              <Text weight="semibold" style={{ color: tint }}>Done</Text>
-            </Pressable>
-          </View>
-        </InputAccessoryView>
-      )}
+      {/* Comments bottom sheet */}
+      <CommentsSheet ref={commentsSheetRef} />
 
       <BottomSheetModal
         ref={filterSheetRef}
@@ -453,68 +394,6 @@ export default function ExploreFeed() {
           </View>
         </BottomSheetView>
       </BottomSheetModal>
-
-      {/* Comments sheet */}
-      <BottomSheetModal
-        ref={commentsSheetRef}
-        snapPoints={["60%", "90%"]}
-        enablePanDownToClose
-        backdropComponent={(props) => (
-          <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} pressBehavior="close" />
-        )}
-        handleIndicatorStyle={{ backgroundColor: scheme === 'dark' ? '#9ca3af' : '#9ca3af' }}
-        backgroundStyle={{ backgroundColor: scheme === 'dark' ? '#111827' : '#ffffff' }}
-        onDismiss={() => setCommentsForId(null)}
-      >
-        <BottomSheetView style={{ flex: 1 }}>
-          <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 6 }}>
-            <Text weight="semibold" style={{ fontSize: 16, color: scheme === 'dark' ? '#f9fafb' : '#111827' }}>Comments</Text>
-          </View>
-          <FlashList
-            data={(pins.find((p) => p.id === commentsForId)?.comments || [])}
-            keyExtractor={(c) => c.id}
-            renderItem={({ item }) => (
-              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingHorizontal: 16, paddingVertical: 8 }}>
-                <View style={styles.avatar}><Text style={styles.avatarText}>{item.user?.[0]?.toUpperCase() || '?'}</Text></View>
-                <View style={{ flex: 1 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Text weight="semibold" style={{ color: scheme === 'dark' ? '#e5e7eb' : '#111827' }}>{item.user}</Text>
-                    <Text style={{ color: scheme === 'dark' ? '#6b7280' : '#9ca3af', fontSize: 12 }}>{new Date(item.createdAt).toLocaleString()}</Text>
-                  </View>
-                  <Text style={{ color: scheme === 'dark' ? '#d1d5db' : '#374151', marginTop: 2 }}>{item.text}</Text>
-                </View>
-              </View>
-            )}
-            contentContainerStyle={{ paddingBottom: 80 }}
-          />
-          {/* Input row inside sheet */}
-          <View style={{ paddingHorizontal: 16, paddingVertical: 10 }}>
-            <View style={styles.commentRow}>
-              <TextInput
-                onFocus={() => setActiveCommentId(commentsForId || null)}
-                keyboardAppearance={scheme === 'dark' ? 'dark' : 'light'}
-                inputAccessoryViewID={Platform.OS === 'ios' ? 'commentAccessory' : undefined}
-                placeholder="Add a comment"
-                placeholderTextColor={scheme === 'dark' ? '#6b7280' : '#9ca3af'}
-                style={[styles.commentInput, scheme === 'dark' ? styles.inputDark : styles.inputLight]}
-                value={commentsForId ? (commentTexts[commentsForId] ?? '') : ''}
-                onChangeText={(t) => commentsForId && setCommentTexts((s) => ({ ...s, [commentsForId]: t }))}
-                onSubmitEditing={() => {
-                  const id = commentsForId;
-                  const txt = id ? (commentTexts[id] ?? '').trim() : '';
-                  if (!id || !txt) return;
-                  const users = ['Alex', 'Sam', 'Taylor', 'Jordan', 'Casey'];
-                  const user = users[Math.floor(Math.random() * users.length)];
-                  addComment(id, { user, text: txt });
-                  setCommentTexts((s) => ({ ...s, [id]: '' }));
-                  Keyboard.dismiss();
-                }}
-                returnKeyType="send"
-              />
-            </View>
-          </View>
-        </BottomSheetView>
-      </BottomSheetModal>
     </View>
   );
 }
@@ -529,10 +408,6 @@ const styles = StyleSheet.create({
   actionRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12 },
   actionBtn: { flexDirection: 'row', alignItems: 'center', marginRight: 18 },
   actionLabel: { marginLeft: 6, color: '#111827' },
-  commentRow: { flexDirection: 'row', alignItems: 'center', marginTop: 10 },
-  commentInput: { flex: 1, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb' },
-  inputLight: { backgroundColor: '#fff' },
-  inputDark: { backgroundColor: '#111827', color: '#f9fafb', borderColor: '#374151' },
   avatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#111827', alignItems: 'center', justifyContent: 'center', marginRight: 10 },
   avatarText: { color: '#ffffff', fontWeight: '700' },
   // Header search styles
